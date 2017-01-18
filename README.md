@@ -10,7 +10,9 @@ Reads WhatsApp log file (on your own machine) and extracts several statistics (p
 * ... more coming soon
 
 ### Examples
-
+|[![v1](https://raw.githubusercontent.com/saisasidhar/wacovi/master/screenshots/v1.png)](https://raw.githubusercontent.com/saisasidhar/wacovi/master/screenshots/v1.png)|[![v2](https://raw.githubusercontent.com/saisasidhar/wacovi/master/screenshots/v2.png)](https://raw.githubusercontent.com/saisasidhar/wacovi/master/screenshots/v2.png)|
+|---|---|
+| Stacked Area Chart | Activity Heatmap |
 
 ### Steps
 * Run the python script ( `-i` option for your name in the log file, `-y` option for your conversation partner's name)
