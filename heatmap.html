@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, shrink-to-fit=no, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>wacovi - The Whatsapp Conversation Visualizer</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- CSS From StartBootstrap.com -->
+    <link href="css/simple-sidebar.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+
+    .timeLabel, .dayLabel {
+		    font-size: 1.6rem;
+		    fill: #AAAAAA;
+		    font-weight: 300;
+		}
+
+		text.axis-workweek, text.axis-worktime {
+		    fill: #404040;
+		    font-weight: 400;
+		}
+
+		.title {
+		    font-size: 2.8rem;
+		    fill: #4F4F4F;
+		    font-weight: 300;
+		}
+
+		.subtitle {
+		    font-size: 1.4rem;
+		    fill: #AAAAAA;
+		    font-weight: 300;
+		}
+
+		.credit {
+		    font-size: 1.2rem;
+		    fill: #AAAAAA;
+		    font-weight: 400;
+		}
+
+		.axis path, .axis tick, .axis line {
+		      fill: none;
+		      stroke: none;
+		  }
+
+		text {
+		      font-size: 1.2rem;
+		      fill: #AAAAAA;
+		      font-weight: 400;
+		}
+
+		.legendTitle {
+		      font-size: 1.6rem;
+		      fill: #4F4F4F;
+		      font-weight: 300;
+		}
+    </style>
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <div id="sidebar-wrapper">
+            <ul class="sidebar-nav">
+                <li class="sidebar-brand">
+                    <a href="#">
+                        wacovi
+                    </a>
+                </li>
+                <li>
+                    <a href="index.html">Converstions - Days,Stacked</a>
+                </li>
+                <li>
+                    <a href="javascript:none">Hourly Activiy Heatmap</a>
+                </li>
+                <li>
+                    <i>Coming Soon...(5 More)</i>
+                </li>
+            </ul>
+        </div>
+        <!-- /#sidebar-wrapper -->
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <a href="#menu-toggle" class="btn btn-default" id="menu-toggle">Toggle Menu</a>
+                        <div class="row">
+                          <p class="text-right">Based on Miles McCrocklin's Heatmap <a href="http://blockbuilder.org/milroc/7014412" target="_blank">block</a> and Nadieh Bremer’s <a href="http://bl.ocks.org/nbremer/62cf60e116ae821c06602793d265eaf6" target="_blank">block</a></p>
+                          <div class="col-lg-12">
+                            <div id="vis-heatmap">
+                            </div>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /#page-content-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <!-- Menu Toggle Script -->
+    <script>
+    $("#menu-toggle").click(function(e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
+    </script>
+
+    <script src="http://d3js.org/d3.v3.js"></script>
+
+    <script>
+
+    // Setup SVG containers
+
+    var days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+    times = d3.range(24);
+
+    var margin = {
+    	top: 170,
+    	right: 50,
+    	bottom: 70,
+    	left: 50
+    };
+
+    var width = Math.max(Math.min(window.innerWidth, 1000), 500) - margin.left - margin.right - 20,
+    	gridSize = Math.floor(width / times.length),
+    	height = gridSize * (days.length+2);
+
+    //SVG container
+    var svg = d3.select('#vis-heatmap')
+    	.append("svg")
+    	.attr("width", width + margin.left + margin.right)
+    	.attr("height", height + margin.top + margin.bottom)
+    	.append("g")
+    	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.csv("hour.csv", function(error, hourly_count) {
+
+      // Draw Heatmap
+      var colorScale = d3.scale.linear()
+      	.domain([0, d3.max(hourly_count, function(d) {return d.total; })/2, d3.max(hourly_count, function(d) {return d.total; })])
+      	.range(["#FFFFDD", "#3E9583", "#1F2D86"])
+      	//.interpolate(d3.interpolateHcl);
+
+      var dayLabels = svg.selectAll(".dayLabel")
+          .data(days)
+          .enter().append("text")
+          .text(function (d) { return d; })
+          .attr("x", 0)
+          .attr("y", function (d, i) { return i * gridSize; })
+          .style("text-anchor", "end")
+          .attr("transform", "translate(-6," + gridSize / 1.5 + ")")
+          .attr("class", function (d, i) { return ((i >= 0 && i <= 4) ? "dayLabel mono axis axis-workweek" : "dayLabel mono axis"); });
+
+      var timeLabels = svg.selectAll(".timeLabel")
+          .data(times)
+          .enter().append("text")
+          .text(function(d) { return d; })
+          .attr("x", function(d, i) { return i * gridSize; })
+          .attr("y", 0)
+          .style("text-anchor", "middle")
+          .attr("transform", "translate(" + gridSize / 2 + ", -6)")
+          .attr("class", function(d, i) { return ((i >= 8 && i <= 17) ? "timeLabel mono axis axis-worktime" : "timeLabel mono axis"); });
+
+      var heatMap = svg.selectAll(".hour")
+          .data(hourly_count)
+          .enter().append("rect")
+          .attr("x", function(d) { return (d.hour) * gridSize; })
+          .attr("y", function(d) { return (d.dow) * gridSize; })
+          .attr("class", "hour bordered")
+          .attr("width", gridSize)
+          .attr("height", gridSize)
+          .style("stroke", "white")
+          .style("stroke-opacity", 0.6)
+          .style("fill", function(d) { return colorScale(d.total); });
+
+      //Append title to the top
+      svg.append("text")
+      	.attr("class", "title")
+          .attr("x", width/2)
+          .attr("y", -90)
+          .style("text-anchor", "middle")
+          .text("Hourly Heatmap");
+
+      // Create Gradient
+      //Extra scale since the color scale is interpolated
+      var countScale = d3.scale.linear()
+      	.domain([0, d3.max(hourly_count, function(d) {return d.total; })])
+      	.range([0, width])
+
+      //Calculate the variables for the temp gradient
+      var numStops = 10;
+      countRange = countScale.domain();
+      countRange[2] = countRange[1] - countRange[0];
+      countPoint = [];
+      for(var i = 0; i < numStops; i++) {
+      	countPoint.push(i * countRange[2]/(numStops-1) + countRange[0]);
+      }
+
+      //Create the gradient
+      svg.append("defs")
+      	.append("linearGradient")
+      	.attr("id", "legend-traffic")
+      	.attr("x1", "0%").attr("y1", "0%")
+      	.attr("x2", "100%").attr("y2", "0%")
+      	.selectAll("stop")
+      	.data(d3.range(numStops))
+      	.enter().append("stop")
+      	.attr("offset", function(d,i) {
+      		return countScale( countPoint[i] )/width;
+      	})
+      	.attr("stop-color", function(d,i) {
+      		return colorScale( countPoint[i] );
+      	});
+
+      // Draw legend
+      var legendWidth = Math.min(width*0.8, 400);
+      //Color Legend container
+      var legendsvg = svg.append("g")
+      	.attr("class", "legendWrapper")
+      	.attr("transform", "translate(" + (width/2) + "," + (gridSize * days.length + 40) + ")");
+
+      //Draw the Rectangle
+      legendsvg.append("rect")
+      	.attr("class", "legendRect")
+      	.attr("x", -legendWidth/2)
+      	.attr("y", 0)
+      	//.attr("rx", hexRadius*1.25/2)
+      	.attr("width", legendWidth)
+      	.attr("height", 10)
+      	.style("fill", "url(#legend-traffic)");
+
+      //Append title
+      legendsvg.append("text")
+      	.attr("class", "legendTitle")
+      	.attr("x", 0)
+      	.attr("y", -10)
+      	.style("text-anchor", "middle")
+      	.text("Number of Messages Exchanged");
+
+      //Set scale for x-axis
+      var xScale = d3.scale.linear()
+      	 .range([-legendWidth/2, legendWidth/2])
+      	 .domain([ 0, d3.max(hourly_count, function(d) { return d.total; })] );
+
+      //Define x-axis
+      var xAxis = d3.svg.axis()
+      	  .orient("bottom")
+      	  .ticks(5)
+      	  //.tickFormat(formatPercent)
+      	  .scale(xScale);
+
+      //Set up X axis
+      legendsvg.append("g")
+      	.attr("class", "axis")
+      	.attr("transform", "translate(0," + (10) + ")")
+      	.call(xAxis);
+    });
+    </script>
+
+</body>
+</html>

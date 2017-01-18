@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, shrink-to-fit=no, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>wacovi - The Whatsapp Conversation Visualizer</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- CSS From StartBootstrap.com -->
+    <link href="css/simple-sidebar.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+
+    .axis path,
+    .axis line {
+      fill: none;
+      stroke: #000;
+      shape-rendering: crispEdges;
+    }
+
+    .browser text {
+      text-anchor: end;
+    }
+
+    .legend rect {
+      fill:white;
+      stroke:black;
+      opacity:0.8;}
+    </style>
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <div id="sidebar-wrapper">
+            <ul class="sidebar-nav">
+                <li class="sidebar-brand">
+                    <a href="#">
+                        wacovi
+                    </a>
+                </li>
+                <li>
+                    <a href="javascript:none">Converstions - Days,Stacked</a>
+                </li>
+                <li>
+                    <a href="heatmap.html">Hourly Activiy Heatmap</a>
+                </li>
+                <li>
+                    <i>Coming Soon...(5 More)</i>
+                </li>
+            </ul>
+        </div>
+        <!-- /#sidebar-wrapper -->
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <a href="#menu-toggle" class="btn btn-default" id="menu-toggle">Toggle Menu</a>
+                        <div class="row">
+                          <p class="text-right">Based on Mike Bostock’s <a href="https://bl.ocks.org/mbostock/3885211" target="_blank">block</a></p>
+                          <div class="col-lg-12">
+                            <div id="vis-stack">
+                            </div>
+                          </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /#page-content-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <!-- Menu Toggle Script -->
+    <script>
+    $("#menu-toggle").click(function(e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
+    </script>
+
+    <script src="http://d3js.org/d3.v3.js"></script>
+    <script src="js/d3.legend.js"></script>
+
+    <script>
+
+    var margin = {top: 20, right: 20, bottom: 30, left: 50},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var parseDate = d3.time.format("%Y-%m-%d").parse;
+        //formatPercent = d3.format(".0%");
+
+    var x = d3.time.scale()
+        .range([0, width]);
+
+    var y = d3.scale.linear()
+        .range([height, 0]);
+
+    //var color = d3.scale.category20();
+    var color = d3.scale.ordinal()
+      .range(["#FF7F0E", "#7BACEC"]);
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left")
+        //.tickFormat(formatPercent);
+
+    var area = d3.svg.area()
+        .interpolate("basis")
+        .x(function(d) { return x(d.datetime); })
+        .y0(function(d) { return y(d.y0); })
+        .y1(function(d) { return y(d.y0 + d.y); });
+
+    var stack = d3.layout.stack()
+        .values(function(d) { return d.values; });
+
+    var svg = d3.select("#vis-stack").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.csv("days.csv", function(error, data) {
+      color.domain(d3.keys(data[0]).filter(function(key) { return key !== "datetime" && key !== "total"; }));
+      data.forEach(function(d) {
+      	d.datetime = parseDate(d.datetime);
+      });
+
+      var browsers = stack(color.domain().map(function(name) {
+        return {
+          name: name,
+          values: data.map(function(d) {
+            return {datetime: d.datetime, y: d[name] * 1};
+          })
+        };
+      }));
+
+      // Find the value of the day with highest total value
+      var maxDateVal = d3.max(data, function(d){
+        var vals = d3.keys(d).map(function(key){ return key !== "datetime" && key !== "total" ? d[key] : 0 });
+        return d3.sum(vals);
+      });
+
+      // Set domains for axes
+      x.domain(d3.extent(data, function(d) { return d.datetime; }));
+      y.domain([0, maxDateVal])
+
+      var browser = svg.selectAll(".browser")
+          .data(browsers)
+          .enter().append("g")
+          .attr("class", "browser");
+
+      browser.append("path")
+          .attr("class", "area")
+          .attr("d", function(d) { return area(d.values); })
+          .attr("data-legend",function(d) { return d.name})
+          .style("fill", function(d) { return color(d.name); });
+
+      svg.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+      svg.append("g")
+          .attr("class", "y axis")
+          .call(yAxis);
+
+      legend = svg.append("g")
+        .attr("class","legend")
+        .attr("transform","translate(50,30)")
+        .style("font-size","12px")
+        .call(d3.legend)
+    });
+
+    </script>
+
+</body>
+</html>
